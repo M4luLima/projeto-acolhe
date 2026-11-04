@@ -13,11 +13,5 @@ Sistema web completo desenvolvido para a ação extensionista **Projeto Acolhe: 
 2. Execute o sistema web:
    streamlit run sistema_acolhe_completo.py
 3. Acesse no seu navegador em http://localhost:8501.
-
-## Como Subir para a Nuvem
-1. Crie um repositório no GitHub e adicione os arquivos do projeto.
-2. Acesse a plataforma de hospedagem de sua preferência (Streamlit Cloud, Render, Railway ou Fly.io).
-3. Selecione o repositório e confirme a publicação do site.
-
 ---
 Grupo 2 — Análise e Desenvolvimento de Sistemas (ADS)
