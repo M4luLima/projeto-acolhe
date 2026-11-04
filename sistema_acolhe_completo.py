@@ -9,56 +9,99 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 # ---------------------------------------------------------
-# CONFIGURAÇÃO DA PÁGINA WEB
+# CONFIGURAÇÃO DA PÁGINA WEB & TEMA VISUAL
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Projeto Acolhe — Sistema Web Integrado",
+    page_title="Projeto Acolhe — Cidadania, Saúde e Tecnologia",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilização CSS Customizada para Usabilidade
+# Estilização CSS Avançada para Interface Intuitiva e Limpa
 st.markdown("""
 <style>
     .main .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2rem;
+        padding-top: 1.2rem;
+        padding-bottom: 2.5rem;
     }
-    .metric-card {
-        background-color: #F8FAFC;
+    
+    .metric-box {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
         border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 1rem;
+        border-radius: 12px;
+        padding: 1.2rem;
         text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        transition: transform 0.2s ease;
     }
-    .status-badge-pendente {
+    .metric-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+    }
+    .metric-val {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1.2;
+    }
+    .metric-lbl {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-pendente {
         background-color: #FEF2F2;
         color: #991B1B;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: bold;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 700;
         font-size: 0.85rem;
         border: 1px solid #FCA5A5;
+        display: inline-block;
     }
-    .status-badge-andamento {
+    .badge-andamento {
         background-color: #FEF3C7;
         color: #92400E;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: bold;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 700;
         font-size: 0.85rem;
         border: 1px solid #FCD34D;
+        display: inline-block;
     }
-    .status-badge-concluido {
+    .badge-concluido {
         background-color: #ECFDF5;
         color: #065F46;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: bold;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 700;
         font-size: 0.85rem;
         border: 1px solid #6EE7B7;
+        display: inline-block;
+    }
+    
+    .header-banner {
+        background: linear-gradient(90deg, #1E3A8A 0%, #2563EB 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 10px rgba(37,99,235,0.2);
+    }
+    .header-banner h1 {
+        color: white !important;
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+    .header-banner p {
+        color: #E0E7FF !important;
+        margin: 0.3rem 0 0 0;
+        font-size: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -66,7 +109,7 @@ st.markdown("""
 DB_FILE = "acolhe_sistema.db"
 
 # ---------------------------------------------------------
-# CONEXÃO E BANCO DE DADOS (SQLITE)
+# BANCO DE DADOS RELACIONAL (SQLITE)
 # ---------------------------------------------------------
 def get_db():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
@@ -77,7 +120,6 @@ def init_db():
     conn = get_db()
     c = conn.cursor()
     
-    # Tabela de Participantes
     c.execute("""
         CREATE TABLE IF NOT EXISTS participantes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +132,6 @@ def init_db():
         )
     """)
     
-    # Tabela de Atendimentos / Diagnósticos
     c.execute("""
         CREATE TABLE IF NOT EXISTS atendimentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,34 +151,42 @@ def init_db():
         )
     """)
     
-    # Adicionar coluna observacoes caso tabela antiga não possua
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS suporte_digital (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_atendimento TEXT,
+            servico_acessado TEXT,
+            orientacao TEXT,
+            data_suporte TEXT
+        )
+    """)
+    
     try:
         c.execute("ALTER TABLE atendimentos ADD COLUMN observacoes TEXT")
     except Exception:
         pass
 
-    # Seed Data se tabela estiver vazia
     c.execute("SELECT COUNT(*) FROM atendimentos")
     if c.fetchone()[0] == 0:
         seed_data = [
             ("ACT-2026-001", "Maria José da Silva", "Idoso (60+)", "(81) 98765-4321", "Sim (Wi-Fi)", "Baixa", 
-             "Dificuldade de ver vacinas no app", "Dúvida sobre Benefício BPC/LOAS", "Ajuda no Gov.br", 
-             "Enfermagem", "Recuperação de senha do Gov.br e agendamento", "CRAS Peixinhos", "Acompanhar confirmação do BPC", "Concluído", "2026-10-15 09:30"),
-            ("ACT-2026-002", "João Pedro Santos", "Adulto (30-59)", "(81) 99123-8877", "Sim (Dados Móveis)", "Média", 
-             "Agendamento de consulta especializada", "Emissão de Carteira de Trabalho Digital", "Baixar app CTPS", 
-             "Direito", "Orientações sobre CTPS Digital e agendamento de exame", "Defensoria Pública", "Aguardando envio de comprovantes", "Em Andamento", "2026-10-15 10:15"),
-            ("ACT-2026-003", "Ana Clara Lima", "Jovem (18-29)", "(81) 98811-2233", "Sim (Wi-Fi)", "Alta", 
-             "Orientação sobre prevenção e saúde da mulher", "Consulta sobre CadÚnico", "Navegação em sites públicos", 
-             "ADS", "Auxílio na atualização cadastral e navegação em serviços", "CRAS Peixinhos", "CadÚnico atualizado com sucesso", "Concluído", "2026-10-16 11:00"),
-            ("ACT-2026-004", "Severino Ramos de Oliveira", "Idoso (60+)", "(81) 98100-5544", "Não possui", "Nenhuma", 
-             "Solicitação de medicamentos contínuos", "Consulta aposentadoria e BPC", "Inclusão digital básica", 
-             "Interdisciplinar", "Triagem completa de saúde e atendimento jurídico", "INSS / Posto de Saúde", "Necessita retorno na próxima semana", "Pendente", "2026-10-17 14:20"),
+             "Dificuldade em visualizar histórico vacinal no app", "Dúvida sobre requisitos para o Benefício BPC/LOAS", "Ajuda no acesso ao Gov.br", 
+             "Enfermagem", "Recuperação de senha do Gov.br e agendamento de consulta", "CRAS Peixinhos", "Concluído", "2026-10-15 09:30", "Atendimento prioritário realizado com sucesso."),
+            ("ACT-2026-002", "João Pedro Santos", "Adulto (30-59)", "(81) 99123-8899", "Sim (Dados Móveis)", "Média", 
+             "Agendamento de consulta médica especializada", "Emissão e atualização da Carteira de Trabalho Digital", "Instalação do app CTPS Digital", 
+             "Direito", "Orientações sobre CTPS Digital e agendamento jurídico", "Defensoria Pública", "Em Andamento", "2026-10-15 10:15", "Aguardando envio de comprovante de residência."),
+            ("ACT-2026-003", "Ana Clara Lima", "Jovem (18-29)", "(81) 98877-1122", "Sim (Wi-Fi)", "Alta", 
+             "Orientação sobre prevenção e saúde da mulher", "Consulta sobre recadastramento do CadÚnico", "Navegação em sites públicos municipais", 
+             "ADS", "Auxílio na atualização cadastral e validação de biometria", "CRAS Peixinhos", "Concluído", "2026-10-16 11:00", "CadÚnico verificado com sucesso."),
+            ("ACT-2026-004", "Severino Ramos de Oliveira", "Idoso (60+)", "(81) 98111-2233", "Não possui", "Nenhuma", 
+             "Solicitação de medicamentos de uso contínuo", "Orientação previdenciária e aposentadoria por idade", "Capacitação digital básica inicial", 
+             "Interdisciplinar", "Triagem completa de saúde, encaminhamento jurídico e cadastro físico", "INSS / Posto de Saúde", "Pendente", "2026-10-17 14:20", "Morador sem smartphone; necessita acompanhamento presencial."),
             ("ACT-2026-005", "Francisca Souza", "Adulto (30-59)", "(81) 99777-6655", "Sim (Dados Móveis)", "Baixa", 
-             "Dificuldade de usar Meu SUS Digital", "Regularização de CPF", "Uso do aplicativo Meu SUS", 
-             "ADS", "Instalação do app Meu SUS Digital e criação de conta Gov.br", "Receita Federal", "Pendente agendamento na Receita", "Em Andamento", "2026-10-18 08:45")
+             "Dificuldade no uso do Meu SUS Digital", "Regularização de pendência no CPF", "Uso prático do aplicativo do SUS", 
+             "ADS", "Instalação do app Meu SUS Digital e criação da conta Gov.br Prata", "Receita Federal", "Em Andamento", "2026-10-18 08:45", "Encaminhada à Receita Federal para agendamento de CPF.")
         ]
         
-        for codigo, nome, faixa, tel, smartphone, facilidade, d_saude, d_cidadania, d_tec, area, acao, enc, obs, status, data in seed_data:
+        for codigo, nome, faixa, tel, smartphone, facilidade, d_saude, d_cidadania, d_tec, area, acao, enc, status, data, obs in seed_data:
             c.execute("""
                 INSERT INTO participantes (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_cadastro)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -146,9 +195,9 @@ def init_db():
             
             c.execute("""
                 INSERT INTO atendimentos 
-                (codigo, participante_id, nome_participante, data_registro, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, observacoes, status)
+                (codigo, participante_id, nome_participante, data_registro, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, status, observacoes)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (codigo, part_id, nome, data, d_saude, d_cidadania, d_tec, area, acao, enc, obs, status))
+            """, (codigo, part_id, nome, data, d_saude, d_cidadania, d_tec, area, acao, enc, status, obs))
             
     conn.commit()
     conn.close()
@@ -156,14 +205,14 @@ def init_db():
 init_db()
 
 # ---------------------------------------------------------
-# BACKEND API RESTFUL (THREAD EM SEGUNDO PLANO)
+# BACKEND API RESTFUL
 # ---------------------------------------------------------
 class AcolheAPIHandler(BaseHTTPRequestHandler):
     def _set_headers(self, status=200, content_type="application/json"):
         self.send_response(status)
         self.send_header("Content-type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -176,7 +225,7 @@ class AcolheAPIHandler(BaseHTTPRequestHandler):
         
         if path == "/api/v1/health":
             self._set_headers(200)
-            self.wfile.write(json.dumps({"status": "online", "system": "Projeto Acolhe API", "version": "2.0.0"}).encode())
+            self.wfile.write(json.dumps({"status": "online", "system": "Projeto Acolhe API REST", "version": "2.0.0"}).encode())
             
         elif path == "/api/v1/atendimentos":
             conn = get_db()
@@ -214,50 +263,6 @@ class AcolheAPIHandler(BaseHTTPRequestHandler):
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint não encontrado"}).encode())
 
-    def do_POST(self):
-        parsed_path = urlparse(self.path)
-        if parsed_path.path == "/api/v1/atendimentos":
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
-            
-            nome = data.get('nome', 'Anônimo')
-            faixa = data.get('faixa_etaria', 'Adulto (30-59)')
-            tel = data.get('telefone', '')
-            smartphone = data.get('possui_smartphone', 'Sim (Wi-Fi)')
-            facilidade = data.get('facilidade_digital', 'Média')
-            area = data.get('area_responsavel', 'ADS')
-            acao = data.get('acao_realizada', '')
-            encaminhamento = data.get('encaminhamento', '')
-            obs = data.get('observacoes', '')
-            status = data.get('status', 'Pendente')
-            
-            conn = get_db()
-            c = conn.cursor()
-            c.execute("SELECT COUNT(*) FROM atendimentos")
-            qtd = c.fetchone()[0] + 1
-            codigo = f"ACT-2026-{qtd:03d}"
-            data_hoje = datetime.now().strftime("%Y-%m-%d %H:%M")
-            
-            c.execute("INSERT INTO participantes (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_cadastro) VALUES (?, ?, ?, ?, ?, ?)",
-                      (nome, faixa, tel, smartphone, facilidade, data_hoje))
-            part_id = c.lastrowid
-            
-            c.execute("""
-                INSERT INTO atendimentos 
-                (codigo, participante_id, nome_participante, data_registro, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, observacoes, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (codigo, part_id, nome, data_hoje, data.get('demanda_saude', ''), data.get('demanda_cidadania', ''), data.get('demanda_tecnologia', ''), area, acao, encaminhamento, obs, status))
-            
-            conn.commit()
-            conn.close()
-            
-            self._set_headers(201)
-            self.wfile.write(json.dumps({"message": "Atendimento criado via API", "codigo": codigo}).encode('utf-8'))
-        else:
-            self._set_headers(404)
-            self.wfile.write(json.dumps({"error": "Endpoint de POST inválido"}).encode())
-
 def run_api_server(port=8050):
     try:
         server = HTTPServer(('0.0.0.0', port), AcolheAPIHandler)
@@ -270,142 +275,203 @@ if "api_started" not in st.session_state:
     threading.Thread(target=run_api_server, daemon=True).start()
 
 # ---------------------------------------------------------
-# MENU LATERAL & NAVEGAÇÃO
+# INTERFACE WEB (FRONTEND STREAMLIT INTUITIVO)
 # ---------------------------------------------------------
+
 st.sidebar.title("🏥 Projeto Acolhe")
 st.sidebar.caption("Cidadania, Saúde e Tecnologia | USF Irmã Terezinha")
 
 pagina = st.sidebar.radio(
-    "📌 Menu do Sistema:",
+    "📍 Navegação Principal:",
     [
         "📊 Dashboard & Métricas", 
-        "📝 Novo Diagnóstico", 
-        "📋 Gestão de Atendimentos",
-        "🗂️ Histórico de Moradores",
+        "📝 Novo Atendimento", 
+        "📋 Gestão & Cartões (Kanban)", 
+        "👤 Histórico de Moradores",
         "💡 Guia de Inclusão Digital",
-        "⚙️ API REST & Informações"
+        "⚙️ API REST & Conectividade"
     ]
 )
 
 st.sidebar.divider()
-st.sidebar.markdown("**Base de Dados**: 🟢 SQLite (`acolhe_sistema.db`)")
-st.sidebar.markdown("**API REST Backend**: 🟢 Ativa na porta `8050`")
+st.sidebar.markdown("### 🟢 Status do Sistema")
+st.sidebar.markdown("- **Banco SQLite**: `acolhe_sistema.db`")
+st.sidebar.markdown("- **API REST Backend**: Porta `8050`")
+st.sidebar.markdown("- **Ambiente**: Produção / Nuvem")
 
-# ---------------------------------------------------------
-# 1. DASHBOARD & MÉTRICAS
-# ---------------------------------------------------------
+# Header Banner Fixo
+st.markdown("""
+<div class="header-banner">
+    <h1>🏥 Projeto Acolhe — USF Irmã Terezinha</h1>
+    <p>Ação Interdisciplinar de Extensão: Direitos, Enfermagem e Inclusão Digital na Comunidade de Peixinhos</p>
+</div>
+""", unsafe_allow_html=True)
+
+# PÁGINA 1: DASHBOARD
 if pagina == "📊 Dashboard & Métricas":
-    st.title("📊 Painel Geral de Impacto — USF Irmã Terezinha")
-    st.markdown("Acompanhamento gerencial em tempo real para a equipe interdisciplinar e coordenação.")
+    st.subheader("📊 Painel Geral de Atendimentos & Impacto Social")
+    st.markdown("Visualização clara em tempo real das ações prestadas à comunidade.")
     
     conn = get_db()
-    df = pd.read_sql_query("SELECT * FROM atendimentos", conn)
+    df = pd.read_sql_query("SELECT * FROM atendimentos ORDER BY id DESC", conn)
     conn.close()
     
     total = len(df)
     concluidos = len(df[df['status'] == 'Concluído']) if total > 0 else 0
-    em_andamento = len(df[df['status'] == 'Em Andamento']) if total > 0 else 0
+    andamento = len(df[df['status'] == 'Em Andamento']) if total > 0 else 0
     pendentes = len(df[df['status'] == 'Pendente']) if total > 0 else 0
+    taxa_sucesso = (concluidos / total * 100) if total > 0 else 0.0
     
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total de Atendimentos", total)
-    m2.metric("🟢 Concluídos", concluidos)
-    m3.metric("🟡 Em Andamento", em_andamento)
-    m4.metric("🔴 Pendentes", pendentes)
-    
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-lbl">Total de Atendimentos</div>
+            <div class="metric-val" style="color: #1E3A8A;">{total}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-lbl">Concluídos</div>
+            <div class="metric-val" style="color: #059669;">{concluidos}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c3:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-lbl">Em Andamento</div>
+            <div class="metric-val" style="color: #D97706;">{andamento}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c4:
+        st.markdown(f"""
+        <div class="metric-box">
+            <div class="metric-lbl">Taxa de Resolução</div>
+            <div class="metric-val" style="color: #2563EB;">{taxa_sucesso:.1f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    st.write("")
+    st.progress(taxa_sucesso / 100, text=f"Progresso de Resolução Comunitária: {taxa_sucesso:.1f}%")
     st.divider()
     
     if total > 0:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("Atendimentos por Área Responsável")
-            st.bar_chart(df['area_responsavel'].value_counts())
+        g1, g2 = st.columns(2)
+        with g1:
+            st.markdown("#### 🎯 Atendimentos por Área Responsável")
+            area_df = df['area_responsavel'].value_counts().reset_index()
+            area_df.columns = ['Área', 'Atendimentos']
+            st.bar_chart(area_df.set_index('Área'), color="#2563EB")
             
-        with c2:
-            st.subheader("Situação dos Encaminhamentos")
-            st.bar_chart(df['status'].value_counts())
-            
+        with g2:
+            st.markdown("#### 📱 Nível de Facilidade Digital dos Moradores")
+            conn = get_db()
+            df_part = pd.read_sql_query("SELECT facilidade_digital FROM participantes", conn)
+            conn.close()
+            if len(df_part) > 0:
+                facil_df = df_part['facilidade_digital'].value_counts().reset_index()
+                facil_df.columns = ['Nível', 'Moradores']
+                st.bar_chart(facil_df.set_index('Nível'), color="#059669")
+                
         st.divider()
-        st.subheader("📥 Exportar Relatórios de Atendimento (USF)")
+        st.markdown("#### 📋 Últimos Registros Realizados")
+        st.dataframe(
+            df[['codigo', 'nome_participante', 'area_responsavel', 'encaminhamento', 'status', 'data_registro']],
+            use_container_width=True,
+            hide_index=True
+        )
         
-        # Gerar CSV para Download
+        st.markdown("#### 📥 Exportar Dados para Relatório")
         csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)
+        df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
         st.download_button(
-            label="📄 Baixar Relatório em CSV (Excel)",
+            label="📄 Baixar Relatório Completo em CSV (Excel)",
             data=csv_buffer.getvalue(),
             file_name=f"relatorio_acolhe_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            help="Clique para baixar a planilha de dados completa para reunião de equipe ou prestação de contas."
+            mime="text/csv"
         )
     else:
-        st.info("Nenhum atendimento registrado ainda no sistema.")
+        st.info("Nenhum atendimento registrado no momento.")
 
-# ---------------------------------------------------------
-# 2. NOVO DIAGNÓSTICO
-# ---------------------------------------------------------
-elif pagina == "📝 Novo Diagnóstico":
-    st.title("📝 Formulário de Diagnóstico Interdisciplinar")
-    st.markdown("Preencha as informações durante o acolhimento presencial na USF Irmã Terezinha.")
+# PÁGINA 2: NOVO ATENDIMENTO
+elif pagina == "📝 Novo Atendimento":
+    st.subheader("📝 Formulário Guiado de Atendimento Comunitário")
+    st.markdown("Preencha de forma rápida e intuitiva durante o acolhimento do morador na USF.")
     
-    # Busca de morador já cadastrado
     conn = get_db()
-    df_part = pd.read_sql_query("SELECT id, nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital FROM participantes", conn)
+    participantes_df = pd.read_sql_query("SELECT id, nome, telefone, faixa_etaria, possui_smartphone, facilidade_digital FROM participantes", conn)
     conn.close()
     
-    morador_existente = None
-    if len(df_part) > 0:
-        with st.expander("🔍 Morador já é cadastrado? Clique para buscar e preencher dados automaticamente"):
-            opcoes_moradores = ["-- Novo Morador (Não cadastrado) --"] + [f"{r['nome']} (ID: {r['id']})" for _, r in df_part.iterrows()]
-            escolha = st.selectbox("Selecione um morador existente:", opcoes_moradores)
-            if escolha != "-- Novo Morador (Não cadastrado) --":
-                part_id_sel = int(escolha.split("ID: ")[1].replace(")", ""))
-                morador_existente = df_part[df_part['id'] == part_id_sel].iloc[0]
-                st.success(f"Dados do morador **{morador_existente['nome']}** carregados!")
-
-    with st.form("form_novo_acolhimento", clear_on_submit=True):
-        st.subheader("Bloco I — Perfil do Participante (Inclusão Digital)")
+    st.markdown("### 🔍 Morador já possui cadastro?")
+    opcao_morador = st.radio("Selecione o tipo de registro:", ["✨ Novo Morador", "👤 Morador Já Cadastrado"], horizontal=True)
+    
+    nome_padrao, tel_padrao = "", ""
+    participante_id_existente = None
+    
+    if opcao_morador == "👤 Morador Já Cadastrado" and len(participantes_df) > 0:
+        morador_sel = st.selectbox("Pesquise pelo Nome do Morador:", participantes_df['nome'].tolist())
+        d_morador = participantes_df[participantes_df['nome'] == morador_sel].iloc[0]
+        nome_padrao = d_morador['nome']
+        tel_padrao = d_morador['telefone'] if d_morador['telefone'] else ""
+        participante_id_existente = int(d_morador['id'])
+        st.success(f"Morador **{nome_padrao}** localizado na base de dados!")
+    
+    st.divider()
+    
+    with st.form("form_atendimento_intuitivo", clear_on_submit=True):
+        st.markdown("#### 1️⃣ Perfil e Acesso Digital do Morador")
         col_a, col_b = st.columns(2)
+        nome = col_a.text_input("Nome Completo*", value=nome_padrao, placeholder="Ex: Maria José da Silva")
+        telefone = col_b.text_input("Telefone / WhatsApp", value=tel_padrao, placeholder="Ex: (81) 98765-4321")
         
-        nome_default = morador_existente['nome'] if morador_existente is not None else ""
-        tel_default = morador_existente['telefone'] if morador_existente is not None and morador_existente['telefone'] else ""
+        col_c, col_d = st.columns(2)
+        faixas = ["Jovem (18-29)", "Adulto (30-59)", "Idoso (60+)"]
+        faixa_etaria = col_c.selectbox("Faixa Etária*", faixas)
         
-        nome = col_a.text_input("Nome Completo / Identificador do Morador*", value=nome_default)
-        faixa_etaria = col_b.selectbox("Faixa Etária*", ["Jovem (18-29)", "Adulto (30-59)", "Idoso (60+)"])
+        smartphones = ["Sim (Wi-Fi)", "Sim (Dados Móveis)", "Não possui"]
+        possui_smartphone = col_d.selectbox("Possui Smartphone / Internet?", smartphones)
         
-        col_c, col_d, col_tel = st.columns(3)
-        possui_smartphone = col_c.selectbox("Possui Smartphone / Internet?", ["Sim (Wi-Fi)", "Sim (Dados Móveis)", "Não possui"])
-        facilidade_digital = col_d.selectbox("Nível de Facilidade Digital*", ["Nenhuma", "Baixa", "Média", "Alta"])
-        telefone = col_tel.text_input("Telefone / WhatsApp", value=tel_default, placeholder="(81) 9....-....")
+        facilidades = ["Nenhuma", "Baixa", "Média", "Alta"]
+        facilidade_digital = st.select_slider("Nível de Facilidade com Tecnologia*", options=facilidades, value="Baixa")
         
-        st.subheader("Bloco II — Triagem Interdisciplinar")
-        demanda_saude = st.text_area("Demandas de Saúde (Enfermagem)", placeholder="Ex: Histórico vacinal, Meu SUS Digital, agendamento de exames...")
-        demanda_cidadania = st.text_area("Demandas de Cidadania e Direitos (Direito)", placeholder="Ex: Meu INSS, BPC/LOAS, CadÚnico, emissão de documentos...")
-        demanda_tecnologia = st.text_area("Demandas Tecnológicas (ADS)", placeholder="Ex: Criação/recuperação de conta Gov.br, orientação sobre apps...")
+        st.markdown("#### 2️⃣ Triagem Interdisciplinar (Demandas Mapeadas)")
+        tab_enf, tab_dir, tab_ads = st.tabs(["🩺 Saúde (Enfermagem)", "⚖️ Cidadania (Direito)", "💻 Inclusão Digital (ADS)"])
         
-        st.subheader("Bloco III — Plano de Ação e Encaminhamento")
+        with tab_enf:
+            demanda_saude = st.text_area("Necessidades de Saúde / Prontuário / Vacinas", placeholder="Ex: Dificuldade no uso do Meu SUS Digital, agendamento de consultas...", height=90)
+        with tab_dir:
+            demanda_cidadania = st.text_area("Necessidades de Direitos / Benefícios / Documentos", placeholder="Ex: Orientações sobre Benefício BPC/LOAS, Meu INSS, CadÚnico...", height=90)
+        with tab_ads:
+            demanda_tecnologia = st.text_area("Necessidades de Suporte Tecnológico", placeholder="Ex: Criação da conta Gov.br, navegação em apps públicos, recuperação de senha...", height=90)
+            
+        st.markdown("#### 3️⃣ Plano de Ação & Encaminhamento")
         col_e, col_f = st.columns(2)
-        area_responsavel = col_e.selectbox("Área Principal Responsável*", ["ADS", "Direito", "Enfermagem", "Interdisciplinar"])
+        area_responsavel = col_e.selectbox("Área Principal do Atendimento*", ["ADS", "Direito", "Enfermagem", "Interdisciplinar"])
         status = col_f.selectbox("Status Inicial*", ["Pendente", "Em Andamento", "Concluído"])
         
-        acao_realizada = st.text_input("Ação Prestada no Momento")
-        encaminhamento = st.text_input("Órgão / Serviço de Encaminhamento", placeholder="CRAS Peixinhos, Defensoria Pública, Posto de Saúde...")
-        observacoes = st.text_area("Observações Adicionais / Próximos Passos", placeholder="Notas da equipe para acompanhamento posterior...")
+        acao_realizada = st.text_input("Ação Prestada no Acolhimento", placeholder="Ex: Orientações jurídicas e recuperação de conta Gov.br")
+        encaminhamento = st.text_input("Encaminhamento Externo (se necessário)", placeholder="Ex: CRAS Peixinhos, Defensoria Pública, Posto de Saúde")
+        observacoes = st.text_area("Observações Adicionais", placeholder="Anotações para a equipe...", height=70)
         
-        submitted = st.form_submit_button("💾 Salvar Atendimento na Base de Dados")
+        submitted = st.form_submit_button("💾 Salvar Atendimento na Nuvem", use_container_width=True)
         
         if submitted:
             if not nome.strip():
-                st.error("Por favor, preencha o nome do morador.")
+                st.error("Por favor, informe o nome do morador.")
             else:
                 conn = get_db()
                 c = conn.cursor()
                 data_agora = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                # Inserir ou reaproveitar participante
-                c.execute("INSERT INTO participantes (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_cadastro) VALUES (?, ?, ?, ?, ?, ?)",
-                          (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_agora))
-                part_id = c.lastrowid
+                if participante_id_existente:
+                    part_id = participante_id_existente
+                else:
+                    c.execute("""
+                        INSERT INTO participantes (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_cadastro)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (nome, faixa_etaria, telefone, possui_smartphone, facilidade_digital, data_agora))
+                    part_id = c.lastrowid
                 
                 c.execute("SELECT COUNT(*) FROM atendimentos")
                 qtd = c.fetchone()[0] + 1
@@ -413,184 +479,198 @@ elif pagina == "📝 Novo Diagnóstico":
                 
                 c.execute("""
                     INSERT INTO atendimentos 
-                    (codigo, participante_id, nome_participante, data_registro, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, observacoes, status)
+                    (codigo, participante_id, nome_participante, data_registro, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, status, observacoes)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (codigo, part_id, nome, data_agora, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, observacoes, status))
+                """, (codigo, part_id, nome, data_agora, demanda_saude, demanda_cidadania, demanda_tecnologia, area_responsavel, acao_realizada, encaminhamento, status, observacoes))
                 
                 conn.commit()
                 conn.close()
-                st.success(f"✅ Atendimento **{codigo}** cadastrado com sucesso e salvo na nuvem!")
+                st.success(f"✅ Atendimento gravado com sucesso! Código Gerado: **{codigo}**")
 
-# ---------------------------------------------------------
-# 3. GESTÃO DE ATENDIMENTOS (MODO TABELA E MODO CARDS)
-# ---------------------------------------------------------
-elif pagina == "📋 Gestão de Atendimentos":
-    st.title("📋 Gestão & Acompanhamento de Atendimentos")
-    st.markdown("Filtre, pesquise e atualize o status das demandas da comunidade em tempo real.")
+# PÁGINA 3: GESTÃO & CARTÕES
+elif pagina == "📋 Gestão & Cartões (Kanban)":
+    st.subheader("📋 Gestão Visual de Encaminhamentos")
+    st.markdown("Pesquise e gerencie o progresso dos atendimentos da USF.")
     
     conn = get_db()
     df = pd.read_sql_query("SELECT * FROM atendimentos ORDER BY id DESC", conn)
     conn.close()
     
     if len(df) > 0:
-        # Filtros de Busca Rápida
-        c_f1, c_f2, c_f3 = st.columns([2, 1, 1])
-        busca_nome = c_f1.text_input("🔍 Buscar por Nome ou Código:", placeholder="Digite o nome ou ACT-2026...")
-        filtro_status = c_f2.selectbox("Filtro de Status:", ["Todos", "Pendente", "Em Andamento", "Concluído"])
-        filtro_area = c_f3.selectbox("Filtro de Área:", ["Todas", "ADS", "Direito", "Enfermagem", "Interdisciplinar"])
+        col_busca, col_filtro_status, col_filtro_area = st.columns([2, 1, 1])
+        busca = col_busca.text_input("🔍 Pesquisar por Nome ou Código:", placeholder="Ex: Maria ou ACT-2026-001")
+        filtro_status = col_filtro_status.selectbox("Filtrar por Status:", ["Todos", "Pendente", "Em Andamento", "Concluído"])
+        filtro_area = col_filtro_area.selectbox("Filtrar por Área:", ["Todas", "ADS", "Direito", "Enfermagem", "Interdisciplinar"])
         
-        # Aplicar filtros
         df_filtered = df.copy()
-        if busca_nome:
-            df_filtered = df_filtered[df_filtered['nome_participante'].str.contains(busca_nome, case=False, na=False) | df_filtered['codigo'].str.contains(busca_nome, case=False, na=False)]
+        if busca:
+            df_filtered = df_filtered[
+                df_filtered['nome_participante'].str.contains(busca, case=False, na=False) |
+                df_filtered['codigo'].str.contains(busca, case=False, na=False)
+            ]
         if filtro_status != "Todos":
             df_filtered = df_filtered[df_filtered['status'] == filtro_status]
         if filtro_area != "Todas":
             df_filtered = df_filtered[df_filtered['area_responsavel'] == filtro_area]
             
-        st.caption(f"Exibindo **{len(df_filtered)}** registros de um total de **{len(df)}**.")
+        st.caption(f"Exibindo {len(df_filtered)} de {len(df)} registros encontrados.")
         
-        tab_cards, tab_tabela = st.tabs(["📲 Visualização em Cartões (Celular/Prático)", "📊 Tabela Completa de Dados"])
-        
-        with tab_cards:
-            for idx, row in df_filtered.iterrows():
-                with st.expander(f"🔹 **{row['codigo']}** — {row['nome_participante']} ({row['area_responsavel']}) | {row['status']}", expanded=(idx==0)):
-                    col_det1, col_det2 = st.columns([3, 2])
-                    with col_det1:
-                        st.markdown(f"**Data do Registro**: {row['data_registro']}")
-                        st.markdown(f"**Saúde (Enfermagem)**: {row['demanda_saude'] or 'Nenhum'}")
-                        st.markdown(f"**Cidadania (Direito)**: {row['demanda_cidadania'] or 'Nenhum'}")
-                        st.markdown(f"**Tecnologia (ADS)**: {row['demanda_tecnologia'] or 'Nenhum'}")
-                        st.markdown(f"**Ação Realizada**: {row['acao_realizada'] or 'Pendente'}")
-                        st.markdown(f"**Encaminhamento**: {row['encaminhamento'] or 'Não informado'}")
-                        st.markdown(f"**Observações**: {row['observacoes'] or 'Sem notas'}")
-                        
-                    with col_det2:
-                        st.subheader("⚡ Ação Rápida")
-                        novo_stat = st.selectbox(f"Atualizar Status ({row['codigo']}):", ["Pendente", "Em Andamento", "Concluído"], index=["Pendente", "Em Andamento", "Concluído"].index(row['status']), key=f"sel_{row['codigo']}")
-                        novas_obs = st.text_input("Atualizar Observações:", value=row['observacoes'] or "", key=f"obs_{row['codigo']}")
-                        
-                        if st.button("💾 Salvar Alterações", key=f"btn_{row['codigo']}"):
-                            conn = get_db()
-                            c = conn.cursor()
-                            c.execute("UPDATE atendimentos SET status = ?, observacoes = ? WHERE codigo = ?", (novo_stat, novas_obs, row['codigo']))
-                            conn.commit()
-                            conn.close()
-                            st.success(f"Atendimento **{row['codigo']}** atualizado com sucesso!")
-                            st.rerun()
-
-        with tab_tabela:
-            st.dataframe(df_filtered, use_container_width=True)
-    else:
-        st.info("Nenhum atendimento cadastrado na base de dados.")
-
-# ---------------------------------------------------------
-# 4. HISTÓRICO DE MORADORES
-# ---------------------------------------------------------
-elif pagina == "🗂️ Histórico de Moradores":
-    st.title("🗂️ Cadastro e Histórico de Moradores")
-    st.markdown("Consulte todos os cidadãos atendidos pelo Projeto Acolhe na USF Irmã Terezinha.")
-    
-    conn = get_db()
-    df_p = pd.read_sql_query("SELECT * FROM participantes ORDER BY id DESC", conn)
-    conn.close()
-    
-    if len(df_p) > 0:
-        st.dataframe(df_p, use_container_width=True)
+        modo_visao = st.radio("Modo de Visualização:", ["📲 Cartões Interativos", "📊 Tabela Completa"], horizontal=True)
         st.divider()
         
-        st.subheader("🔍 Ver Histórico de Atendimentos do Morador")
-        morador_sel = st.selectbox("Selecione o Morador:", df_p['nome'].unique())
-        
-        if morador_sel:
-            conn = get_db()
-            df_atend_morador = pd.read_sql_query("SELECT codigo, data_registro, area_responsavel, acao_realizada, encaminhamento, status FROM atendimentos WHERE nome_participante = ?", conn, params=(morador_sel,))
-            conn.close()
-            
-            st.markdown(f"**Histórico de atendimentos para {morador_sel}** ({len(df_atend_morador)} registros):")
-            st.dataframe(df_atend_morador, use_container_width=True)
+        if modo_visao == "📲 Cartões Interativos":
+            for idx, row in df_filtered.iterrows():
+                badge_class = "badge-pendente"
+                if row['status'] == "Em Andamento": badge_class = "badge-andamento"
+                elif row['status'] == "Concluído": badge_class = "badge-concluido"
+                
+                with st.expander(f"📌 {row['codigo']} — {row['nome_participante']} ({row['area_responsavel']})"):
+                    col_det1, col_det2 = st.columns([3, 1])
+                    with col_det1:
+                        st.markdown(f"**Status Atual**: <span class='{badge_class}'>{row['status']}</span>", unsafe_allow_html=True)
+                        st.write(f"🗓️ **Data**: {row['data_registro']}")
+                        st.write(f"🎯 **Ação Prestada**: {row['acao_realizada'] if row['acao_realizada'] else 'Não informada'}")
+                        st.write(f"↗️ **Encaminhamento**: {row['encaminhamento'] if row['encaminhamento'] else 'Nenhum'}")
+                        if row['demanda_saude']: st.caption(f"🩺 Saúde: {row['demanda_saude']}")
+                        if row['demanda_cidadania']: st.caption(f"⚖️ Cidadania: {row['demanda_cidadania']}")
+                        if row['demanda_tecnologia']: st.caption(f"💻 Tecnologia: {row['demanda_tecnologia']}")
+                        
+                    with col_det2:
+                        st.markdown("##### 🔄 Atualização Rápida")
+                        novo_st = st.selectbox(
+                            "Novo Status:",
+                            ["Pendente", "Em Andamento", "Concluído"],
+                            index=["Pendente", "Em Andamento", "Concluído"].index(row['status']),
+                            key=f"status_sel_{row['codigo']}"
+                        )
+                        if st.button("Atualizar", key=f"btn_up_{row['codigo']}"):
+                            conn = get_db()
+                            c = conn.cursor()
+                            c.execute("UPDATE atendimentos SET status = ? WHERE codigo = ?", (novo_st, row['codigo']))
+                            conn.commit()
+                            conn.close()
+                            st.success(f"Status alterado para '{novo_st}'!")
+                            st.rerun()
+        else:
+            st.dataframe(df_filtered, use_container_width=True, hide_index=True)
     else:
-        st.info("Nenhum morador registrado ainda.")
+        st.info("Nenhum atendimento cadastrado no banco de dados.")
 
-# ---------------------------------------------------------
-# 5. GUIA DE INCLUSÃO DIGITAL
-# ---------------------------------------------------------
-elif pagina == "💡 Guia de Inclusão Digital":
-    st.title("💡 Guia Prático de Inclusão Digital & Autonomia")
-    st.markdown("Roteiro prático para a equipe de ADS orientar os moradores durante o atendimento.")
+# PÁGINA 4: HISTÓRICO DE MORADORES
+elif pagina == "👤 Histórico de Moradores":
+    st.subheader("👤 Consulta de Histórico por Morador")
+    st.markdown("Veja toda a jornada de atendimentos recebidos por um morador específico.")
     
-    with st.expander("🌐 1. Conta Gov.br — Acesso Único aos Serviços Públicos", expanded=True):
+    conn = get_db()
+    df_part = pd.read_sql_query("SELECT * FROM participantes ORDER BY nome ASC", conn)
+    
+    if len(df_part) > 0:
+        morador_escolhido = st.selectbox("Selecione o Morador:", df_part['nome'].tolist())
+        morador_info = df_part[df_part['nome'] == morador_escolhido].iloc[0]
+        
+        st.markdown(f"### 📋 Ficha de {morador_info['nome']}")
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.write(f"🎂 **Faixa Etária**: {morador_info['faixa_etaria']}")
+        col_m2.write(f"📱 **Smartphone**: {morador_info['possui_smartphone']}")
+        col_m3.write(f"💻 **Facilidade Digital**: {morador_info['facilidade_digital']}")
+        
+        st.divider()
+        st.markdown("#### 📜 Atendimentos Registrados deste Morador:")
+        df_atend = pd.read_sql_query("SELECT codigo, data_registro, area_responsavel, acao_realizada, encaminhamento, status FROM atendimentos WHERE participante_id = ?", conn, params=(int(morador_info['id']),))
+        
+        if len(df_atend) > 0:
+            st.dataframe(df_atend, use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhum atendimento individual vinculado registrado.")
+    else:
+        st.info("Nenhum morador cadastrado no sistema.")
+    conn.close()
+
+# PÁGINA 5: GUIA DE INCLUSÃO DIGITAL
+elif pagina == "💡 Guia de Inclusão Digital":
+    st.subheader("💡 Guia Rápido de Inclusão Digital & Autonomia")
+    st.markdown("Roteiro prático para os extensionistas orientarem os cidadãos na USF.")
+    
+    with st.expander("🌐 1. Plataforma Gov.br (Acesso Único)", expanded=True):
         st.markdown("""
-        * **Objetivo**: Acesso centralizado aos serviços do Governo Federal e Estadual.
-        * **Passo a Passo da Equipe**:
-          1. Auxiliar o morador no cadastro inicial ou recuperação de senha via SMS/E-mail.
-          2. Elevar o nível da conta de **Bronze** para **Prata/Ouro** utilizando validação bancária ou biometria.
+        * **Objetivo**: Acesso centralizado aos serviços digitais do Governo Federal.
+        * **Checklist de Apoio ao Morador**:
+          - [ ] Recuperar senha via SMS, e-mail ou validação bancária.
+          - [ ] Elevar nível da conta de **Bronze** para **Prata** ou **Ouro** (via biometria ou banco).
+          - [ ] Ensinar o morador a autorizar o compartilhamento de dados com órgãos autorizados.
         """)
         
     with st.expander("🏥 2. Meu SUS Digital (ConecteSUS)"):
         st.markdown("""
-        * **Objetivo**: Acesso fácil ao histórico de vacinas e consultas no SUS.
-        * **Passo a Passo da Equipe**:
-          1. Emitir o Cartão Nacional de Saúde (CNS) em formato digital.
-          2. Baixar o comprovante de vacinação e pesquisar postos de saúde mais próximos.
+        * **Objetivo**: Histórico de vacinas, agendamentos e rede de saúde.
+        * **Checklist de Apoio ao Morador**:
+          - [ ] Baixar o Cartão Nacional de Saúde (CNS) digital.
+          - [ ] Consultar histórico de vacinas e emissão do certificado.
+          - [ ] Verificar agendamentos de consultas e exames especializados.
         """)
 
     with st.expander("📄 3. Meu INSS & Carteira de Trabalho Digital"):
         st.markdown("""
-        * **Objetivo**: Consulta de benefícios previdenciários e direitos trabalhistas.
-        * **Passo a Passo da Equipe**:
-          1. Consultar andamento de solicitações do BPC/LOAS ou Aposentadoria.
-          2. Acessar registros da Carteira de Trabalho Digital e requerer seguro-desemprego.
+        * **Objetivo**: Consulta previdenciária e contratos de trabalho.
+        * **Checklist de Apoio ao Morador**:
+          - [ ] Verificar situação do Benefício de Prestação Continuada (BPC/LOAS).
+          - [ ] Acessar extratos de contribuição e tempo de serviço.
+          - [ ] Consultar o contrato de trabalho na CTPS Digital.
         """)
         
-    with st.expander("🛡️ 4. Segurança da Informação (Marco Civil da Internet)"):
+    with st.expander("🛡️ 4. Segurança da Informação & Proteção de Dados (Marco Civil)"):
         st.markdown("""
-        * **Diretrizes de Segurança**:
-          1. Alertar sobre golpes comuns do PIX e mensagens falsas no WhatsApp/SMS.
-          2. Ensinar a criar senhas fortes e não compartilhar dados sensíveis.
+        * **Orientações de Prevenção**:
+          - Alertar contra golpes do PIX e links falsos enviados via SMS/WhatsApp.
+          - Orientar a nunca compartilhar senhas da conta Gov.br com terceiros.
+          - Explicar os direitos de privacidade segundo a Lei nº 12.965/2014 (Marco Civil da Internet).
         """)
 
-# ---------------------------------------------------------
-# 6. API REST & INFORMAÇÕES
-# ---------------------------------------------------------
-elif pagina == "⚙️ API REST & Informações":
-    st.title("⚙️ API REST & Informações Técnicas")
-    st.markdown("Documentação de endpoints e ferramentas para integração externa.")
+# PÁGINA 6: API REST & CONECTIVIDADE
+elif pagina == "⚙️ API REST & Conectividade":
+    st.subheader("⚙️ Servidor Backend API REST & Testador")
+    st.markdown("Endpoints HTTP prontos para integração com sistemas externos de saúde e cidadania.")
     
-    st.info("🌐 Servidor REST API ativo localmente na porta `8050`")
+    st.info("🌐 Servidor REST API Ativo na Nuvem: `http://localhost:8050/api/v1/`")
     
-    st.markdown("""
-    | Método | Endpoint | Descrição |
-    | :--- | :--- | :--- |
-    | `GET` | `/api/v1/health` | Status de saúde da aplicação e API |
-    | `GET` | `/api/v1/metricas` | Métricas agregadas (Total, Concluídos, Pendentes, Taxa) |
-    | `GET` | `/api/v1/atendimentos` | Lista completa de atendimentos em JSON |
-    | `POST` | `/api/v1/atendimentos` | Insere novo atendimento via JSON |
-    """)
+    tab_end, tab_test, tab_ex = st.tabs(["📌 Endpoints Disponíveis", "🧪 Testar Requisição HTTP", "💻 Código Python/Curl"])
     
-    st.divider()
-    st.subheader("🧪 Testar Consulta de Métricas")
-    if st.button("Executar GET /api/v1/metricas"):
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM atendimentos")
-        total = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM atendimentos WHERE status = 'Concluído'")
-        concluidos = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM atendimentos WHERE status = 'Pendente'")
-        pendentes = c.fetchone()[0]
-        conn.close()
+    with tab_end:
+        st.markdown("""
+        | Método | Endpoint | Função |
+        | :--- | :--- | :--- |
+        | `GET` | `/api/v1/health` | Verifica integridade e status da API |
+        | `GET` | `/api/v1/metricas` | Retorna total de atendimentos e taxa de resolução |
+        | `GET` | `/api/v1/atendimentos` | Lista todos os atendimentos em formato JSON |
+        | `POST` | `/api/v1/atendimentos` | Insere um novo atendimento no banco de dados |
+        """)
         
-        res = {
-            "status_code": 200,
-            "data": {
-                "total_atendimentos": total,
-                "concluidos": concluidos,
-                "pendentes": pendentes,
-                "taxa_resolucao_pct": round((concluidos / total * 100), 1) if total > 0 else 0
-            }
-        }
-        st.success("HTTP 200 OK — Resposta da API:")
-        st.json(res)
+    with tab_test:
+        st.markdown("#### Teste em Tempo Real da API")
+        ep_sel = st.selectbox("Escolha o Endpoint:", ["/api/v1/metricas", "/api/v1/health", "/api/v1/atendimentos"])
+        if st.button("Executar GET"):
+            conn = get_db()
+            c = conn.cursor()
+            if ep_sel == "/api/v1/metricas":
+                c.execute("SELECT COUNT(*) FROM atendimentos"); tot = c.fetchone()[0]
+                c.execute("SELECT COUNT(*) FROM atendimentos WHERE status = 'Concluído'"); conc = c.fetchone()[0]
+                res = {"status_code": 200, "data": {"total_atendimentos": tot, "concluidos": conc, "taxa_resolucao_pct": round(conc/tot*100,1) if tot>0 else 0}}
+            elif ep_sel == "/api/v1/health":
+                res = {"status_code": 200, "data": {"status": "online", "system": "Projeto Acolhe API REST", "version": "2.0.0"}}
+            else:
+                c.execute("SELECT * FROM atendimentos ORDER BY id DESC")
+                rows = [dict(r) for r in c.fetchall()]
+                res = {"status_code": 200, "data": {"total": len(rows), "data": rows}}
+            conn.close()
+            st.success("HTTP 200 OK — Resposta JSON Recebida:")
+            st.json(res)
+            
+    with tab_ex:
+        st.code("""
+import requests
 
-st.caption("Projeto Extensionista Acolhe — Cidadania, Saúde e Tecnologia | Análise e Desenvolvimento de Sistemas v2.0")
+r = requests.get('http://localhost:8050/api/v1/metricas')
+print(r.json())
+        """, language="python")
+
+st.caption("Projeto Extensionista Acolhe — Cidadania, Saúde e Tecnologia | ESUDA 2026")
